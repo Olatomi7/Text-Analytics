@@ -1,0 +1,285 @@
+---
+title: "Text Analytics of TED talks by Bono and Louie Schwartzberg"
+author: "Olatomi"
+output:
+  pdf_document: default
+  html_document: default
+---
+<style>
+body {text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+#Load the library of each package required
+
+library(dsEssex)
+library(ggplot2)
+library(dplyr)
+library(tidytext)
+library(tidyverse)
+library(ggrepel)
+library(stringr)
+library(knitr)
+library(rmarkdown)
+library(tidyr)
+
+#Load the TED talks data set
+
+data("ted_talks")
+
+#View the first few rows in the data set
+
+glimpse(ted_talks)
+
+```
+
+## Introduction
+
+A determination of opinion mining, also known as sentiment analysis which is an approach 
+that identifies the emotional tone or nuance behind a body of text will be performed on the transcripts of 2 TED speakers.
+
+TED which is an acronym for Technology, Entertainment and Design is dedicated to spreading ideas in the form of short, compelling talks ranging from science to business to global issues in several languages. The first assigned speaker Bono, gave these talks - "My wish: Three actions for Africa in February 2005, and The good news on poverty (Yes, there's good news in February 2013)". The other speaker Louie Schwartzberg's talks centered around "The hidden beauty of pollination in March 2011, and Hidden miracles of the natural world in March 2014".
+
+This report aims to evaluate the frequency of words used by these speakers, and if the words convey a positive or negative emotion, while showcasing the descriptive statistics of sentiments.
+
+
+## Methods
+
+**Text Analytics**
+
+All required packages to perform the text and sentiment analysis are loaded, and the data set is extracted from the dsEssex package. 
+
+There are 2 assigned speakers for this report, and their talks will be filtered out from the raw TED talk transcript data of several other speakers. 
+
+The next step is to start pre-processing of the data with natural language techniques like tokenization which transforms the data into tidy text format, by converting the data frame to a tibble with one token per document per row (unigram). This is achieved using the Tidytext package unnest_tokens() function.
+
+Afterwards, stop words which are filler words with little or no meaning are removed with dplyr's anti_join() function to focus on important information in the text. 
+
+Now that the data is Tidytext-compatible, dplyr's count() and filter() function are used to obtain top words and compare word frequencies for both speakers. 
+
+After obtaining the top words, data is then piped directly to the ggplot2 package to visualize the most common words using dplyr's slice_max() function.
+
+**Sentiment Analysis**
+
+To determine the emotional context of each speaker's talk towards the subject matter, it is necessary to perform opinion mining using any of the 3 general purpose lexicons that exist for this purpose. This sentiment is mostly quantified with a positive or negative label, and the total sentiment obtained by adding up or weighing the percentage of the individual sentiment scores. For this report, the bing lexicon will be used to extract the sentiment-expressing words from the text.
+
+A graphical representation in form of a bar plot will be used to visualize the sentiment breakdown for both speakers.
+
+
+
+## Results
+
+Detailed below are the results from the text analytics and sentiment analysis of the two TED speaker's talks. The results capture both tabular and graphical representation of the frequency of words, speaker word comparison, visualization of top words as well as the word sentiment evaluation for each speaker.  The most positively-rated words from both speakers using the bing lexicon sentiment are also included.
+
+
+**Text analytics results**
+
+From the bar plot of Bono's top words, we observe that the most frequently occurring words are people, world and Africa which occur over 20 times in the text which indicates that this talk is centered around people in Africa and the world. The next most frequent words are America, lives and poverty and this can be tied to the first three most occurring words to indicate poverty in Africa and the role of America. Other words lend more credence to Ethiopia being referenced in Africa, importance of data and equality and how to change life in Africa.
+
+Reviewing the bar plot of Louie's top words, the commonly repeated words are time, life, lapse, world, nature and air which are all words that relate to nature. Pollinators, images and flowers also come up a few times confirming the subject matter to be about pollinators, how they are unseen, and are mostly seen in images captured on film.
+
+The frequency plot shows a higher word count and frequency being used by Bono to convey his message. This may also be as a result of a longer talk time. On the other hand, Louie's word frequency was limited to a couple of words and centered around his subject matter. This can be attributed to a shorter talk time or use of a visual representation of the subject matter. Also, there was a higher repetition of words by Bono which indicates a narrative about people and places, while Louie's words were less repeated. From the plot, words common to both speakers are observed to be technology, transform, love, times, life and time.
+
+
+```{r, figures-side, fig.show="hold", out.width="50%"}
+#Filter the talks for the 2 assigned speakers for analysis using the filter() function from dplyr
+
+My_data <- ted_talks %>%
+  filter(speaker %in% c("Bono", "Louie Schwartzberg"))
+
+#Tidy and Tokenise the data using Tidytext's unnest_tokens() function
+
+Tidy_My_data <- My_data %>%
+  unnest_tokens(word, text)
+
+#Remove Stopwords with the anti_join() function in dplyr
+
+Tidy_No_Stopwords <- Tidy_My_data %>%
+  anti_join(stop_words, by = "word")
+
+#Identify top words for both speakers with dplyr's count() and filter() functions 
+
+Bono_words <- Tidy_No_Stopwords %>%
+  filter(speaker == "Bono") %>%
+  count(speaker, word, sort = TRUE)
+
+Louie_words <- Tidy_No_Stopwords %>%
+  filter(speaker == "Louie Schwartzberg") %>%
+  count(speaker, word, sort = TRUE)
+
+#Visualize the top words for both speakers by using dplyr's slice_max() function
+
+Bono_words %>%
+  slice_max(n, n = 20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) + geom_col(fill = "darkturquoise") + ggtitle("Fig 1.1 - Bono Words")
+
+Louie_words %>%
+  slice_max(n, n = 20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) + geom_col(fill = "deeppink") + ggtitle("Fig 1.2 - Louie Words")
+
+
+#Compare and visualize word frequencies for both speakers using the ggrepel package
+
+bind_rows(Bono_words, Louie_words) %>%
+  group_by(word) %>%
+  filter(sum(n) > 6.5) %>%
+  ungroup() %>%
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>%
+  ggplot(aes(`Bono`, `Louie Schwartzberg`)) +
+  geom_abline(color = "red", size = 1.2, alpha = 0.75, lty = 1) +
+  geom_text_repel(aes(label = word), max.overlaps = 30) + ggtitle(" Fig 1.3 - Word frequencies for Bono and Louie Schwartzberg") +
+  coord_fixed()
+
+```
+
+
+
+
+
+**Sentiment analysis results**
+
+
+There are several tools and dictionaries for assessing the sentiment or opinion in text, and the tidy text package gives access to a number of these lexicons. The AFINN, bing, and nrc are the three general-purpose lexicons. For this sentiment analysis, the bing sentiment lexicon will be used to evaluate the occurrence and count of both positive and negative words, and the process is initiated with the tidy data from the text analytics process.
+
+
+
+```{r, results='hide'}
+
+#2. Sentiment analysis of the data set
+#Have a look at the bing lexicon sentiment 
+
+get_sentiments("bing")
+
+```
+
+
+The table below depicts the sentiment label accorded by the bing sentiment lexicon to the words used by both speakers. The text contains both root words and words derived from the root words to convey both positive and negative emotion.
+
+
+
+
+```{r}
+
+#Start with the Tidy_No_Stopwords dataframe which has been converted to Tidy text format. Use the inner_join() function from dplyr and tidytext's get_sentiments() to examine the sentiment content and word-count that contributes to the number of positive and negative words from both speakers using the bing lexicon sentiment
+
+Tidy_bing_Sentiment <- Tidy_No_Stopwords %>%
+  inner_join(get_sentiments("bing"), by = "word")
+
+Tidy_bing_count <- Tidy_bing_Sentiment %>%
+  count(word, speaker, sentiment)
+
+
+
+
+
+```
+
+
+
+Table below shows the frequency of word usage based on sentiment description for both speakers being expressed as a whole, and then as a percentage value of the top 10 words sentiment contribution. 
+
+
+
+
+```{r}
+
+#Determine the total number of words and percentage of positive and negative words used by both speakers 
+
+Bono_Sentiment <- Bono_words %>%
+  inner_join(get_sentiments("bing"), by = "word")
+
+
+Bono_top_10p <- Bono_Sentiment %>% slice_max(n,n=10) %>%
+  filter(sentiment=="positive" | sentiment=="negative")%>%
+mutate(total = sum(n), percent = n / total * 100) %>%
+arrange(desc(percent))
+kable(Bono_top_10p)
+
+
+Louie_Sentiment <- Louie_words %>%
+  inner_join(get_sentiments("bing"), by = "word")
+
+
+Louie_top_10p <- Louie_Sentiment %>% slice_max(n,n=10) %>%
+  filter(sentiment=="positive" | sentiment=="negative")%>%
+mutate(total = sum(n), percent = n / total * 100) %>%
+arrange(desc(percent))
+kable(Louie_top_10p)
+
+```
+
+
+
+
+Finally, the most common positive and negative words from both speakers are shown separately to deduce the total sentiment and emotion behind their talks. Also, we evaluate the net sentiment (positive - negative) to determine the sentiment analysis from both speakers.
+
+
+
+
+
+```{r, results='hide'}
+#Visualize the most common positive and negative words from both speakers using ggplot() array of functions to plot the bar plot
+
+Bono_Sentiment %>%
+  group_by(speaker) %>%
+  slice_max(n, n = 15) %>%
+  mutate(word = reorder(word, n)) %>%
+  ungroup() %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free") +
+  ggtitle("Fig 2.1 - Bono word sentiments")
+  labs(x = "Sentiment Value", y = NULL)
+
+  
+  
+
+Louie_Sentiment %>%
+  group_by(speaker) %>%
+  slice_max(n, n = 10) %>%
+  mutate(word = reorder(word, n)) %>%
+  ungroup() %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free") +
+  ggtitle("Fig 2.2 - Louie Schawartzberg word sentiments") +
+  labs(x = "Sentiment Value", y = NULL)
+
+
+#Calculate net sentiment for each speaker using the tidyr() function to separate the sentiments into different columns and calculate net sentiments
+
+Bono_Net_Sentiment <- Bono_Sentiment %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+Louie_Net_Sentiment <- Louie_Sentiment %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+
+
+```
+
+
+
+
+
+## Conclusion
+
+This report chronicles reading text data of 2 TED speakers into R, data cleaning, word frequency, and transformation to identify important words and perform opinion mining of the talks. The bing sentiment lexicon was used to determine the sentiment analysis, and it was functional in assigning numeric values to word, and percentage contribution to positivity or negativity based on sentiment. 
+
+From the results of the sentiment analysis, the sentiment inference for Bono's talks are negative. The word poverty was used up to 10 times and other negative words were used less than twice, accounting for about 35.3% of the top 10 sentiments in his talks. This was also confirmed from the net negative analysis value of -36 from his positive and negative words. 
+
+For Louie Schwartzberg, the most positive word: love was used thrice with others occurring twice. Negative words occurred less than twice except for the top negative word coming up more than 6 times. Therefore, a more positive trend is observed for his talks with a net positive of 2. 
+
+However, one of the limitations of this report is how a lower word count may not allow for a good estimate of sentiments. Another limitation is how words may be misconstrued based on the sentiment lexicon being used. For example, the words - shark and limit which featured in Louie's negative words do not necessarily connote a negative meaning and may not be negative in other lexicons. This is because each sentiment label is based on pre-defined words and meanings in the sentiment lexicon being used. Therefore, a custom stopword list can be generated to make considerations for this if words are wrongly labelled.
+
+To get a more accurate sentiment label, further investigation can be carried out by evaluating the talks with the 3 major sentiment lexicons to determine which lexicon has the best fit for the talks based on the word content of the lexicon itself. 
+
+
+
+
